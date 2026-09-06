@@ -25,14 +25,17 @@ echo "==> alist: $ALIST_VERSION"
 if [ ! -f "$BIN/alist.exe" ]; then
   echo "==> 下载 alist $ALIST_VERSION ..."
   mkdir -p "$BIN" "$DIST"
-  TMP="$REPO/.ci-tmp"
-  rm -rf "$TMP"; mkdir -p "$TMP"
-  curl -sSL -o "$TMP/alist.zip" \
+  # 注意：绝不可命名为 TMP / TEMP —— 那是 Windows 已导出的环境变量，
+  # Go 工具链会将其作为临时工作目录；若在此删除会导致 wails build 报
+  # "go: creating work dir: ... The system cannot find the file specified"。
+  WORKTMP="$REPO/.ci-tmp"
+  rm -rf "$WORKTMP"; mkdir -p "$WORKTMP"
+  curl -sSL -o "$WORKTMP/alist.zip" \
     "https://github.com/AlistGo/alist/releases/download/$ALIST_VERSION/alist-windows-amd64.zip"
-  TMP_WIN="$(cygpath -w "$TMP")"
-  powershell.exe -NoProfile -Command "Expand-Archive -Path '$TMP_WIN/alist.zip' -DestinationPath '$TMP_WIN' -Force"
-  cp "$TMP/alist.exe" "$BIN/alist.exe"
-  rm -rf "$TMP"
+  WORKTMP_WIN="$(cygpath -w "$WORKTMP")"
+  powershell.exe -NoProfile -Command "Expand-Archive -Path '$WORKTMP_WIN/alist.zip' -DestinationPath '$WORKTMP_WIN' -Force"
+  cp "$WORKTMP/alist.exe" "$BIN/alist.exe"
+  rm -rf "$WORKTMP"
 fi
 
 # 2) Wails 构建（Windows/amd64，纯 Go，无 CGO）

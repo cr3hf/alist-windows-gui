@@ -24,14 +24,16 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Go build & vet
-        run: |
-          cd app
-          go build ./...
-          go vet ./...
-
+      # main.go 使用 //go:embed all:frontend/dist，必须先构建前端生成 dist，
+      # 否则 go build 会报 "pattern all:frontend/dist: no matching files found"。
       - name: Frontend build
         run: |
           cd app/frontend
           npm ci
           npm run build
+
+      - name: Go build & vet
+        run: |
+          cd app
+          go build ./...
+          go vet ./...
