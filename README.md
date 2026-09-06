@@ -87,6 +87,20 @@ git push origin v1.0.0      # 触发 release.yml → 自动生成 Release 与安
 
 ---
 
+## 自动化技能（Agent Skill）
+
+[`docs/skills/github-open-source-release/SKILL.md`](./docs/skills/github-open-source-release/SKILL.md)
+沉淀了本项目开源与 CI 落地的完整流程，可直接复用到其他项目：
+
+- 无 `gh` CLI 时，如何复用本机缓存凭据调用 GitHub API 建仓 / 推送 / 发布；
+- `.gitignore` / `.gitattributes` 的常见陷阱（行尾空格导致规则失效、CRLF 破坏 `.sh` 脚本）；
+- Windows CI 的三个高频坑（`TMP` 变量被 Go 工具链占用、`go:embed` 需先构建前端、choco NSIS 不生成 shim）；
+- 拉取失败日志、以及重建标签重新触发发布的方法。
+
+> 该文档仅含通用流程与占位符（`<repo>` / `<user>`），不包含任何凭据或个人路径信息。
+
+---
+
 ## 许可证
 
 - 本桌面外壳（alist-windows-gui）以 **GNU Affero 通用公共许可证 v3.0（AGPL-3.0）** 发布。完整文本见仓库根目录 [`LICENSE`](./LICENSE)。
