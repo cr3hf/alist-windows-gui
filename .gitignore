@@ -1,0 +1,22 @@
+# ===== 构建产物（不入库） =====
+/bin/
+/dist/
+/tools/
+/.ci-tmp/
+*.exe
+app/build/bin/
+
+# ===== 前端 =====
+node_modules/
+app/frontend/node_modules/
+app/frontend/dist/
+
+# ===== 运行时生成（由程序写入数据目录，非源码） =====
+desktop-settings.json
+desktop-admin.json
+portable.ini
+*.log
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+AList 桌面版 (alist_win) — 许可证与第三方组件声明
+====================================================
+
+1. 本程序（桌面外壳 alist_win）
+   通过命令行与 HTTP 接口驱动独立的 alist 进程，不修改 alist 源码。
+
+2. 第三方组件：alist
+   - 版本：随分发版本而定（见"关于"页）
+   - 版权：Copyright (c) AlistGo 及其贡献者
+   - 许可证：GNU Affero 通用公共许可证 v3.0（AGPL-3.0）
+   - 许可证全文：bin\LICENSE-alist.txt
+   - 源码：https://github.com/AlistGo/alist
+   依据 AGPL-3.0 第 6/13 条，本分发提供上述源码获取方式以履行源码提供义务。
+   本程序未修改 alist 源码；如未来修改后再分发，将同样以 AGPL-3.0 提供。
+
+3. 其他第三方依赖（桌面外壳自身）
+   - Wails v2 (github.com/wailsapp/wails) — MIT License
+   - energye/systray v1.0.3 (github.com/energye/systray) — Apache-2.0
+   - golang.org/x/sys — BSD-3-Clause
+   各组件许可证文本可在其源码仓库获取。
+
+4. 免责声明
+   本程序按"现状"提供，不附带任何明示或默示的担保。
+   使用本程序存储、分享数据所产生的行为与后果由使用者自行承担。

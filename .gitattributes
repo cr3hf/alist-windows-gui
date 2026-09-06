@@ -1,0 +1,10 @@
+# 统一使用 LF 行尾，避免 Windows 上 .sh 等脚本被转换成 CRLF 而失效
+* text=auto eol=lf
+
+# 二进制资源
+*.png binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.exe binary
