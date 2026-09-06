@@ -61,7 +61,30 @@ touch "$DIST/stage-portable/portable.ini"
 
 # 4) NSIS 安装包（确保 installer.nsi 恰好一个 UTF-8 BOM）
 echo "==> NSIS 安装包"
-NSIS="${NSIS:-C:/ProgramData/chocolatey/bin/makensis.exe}"
+# 解析 makensis 路径：优先 $NSIS 环境变量 → PATH → 常见安装位置。
+# 注意：choco 的 nsis 包部署到 "C:\Program Files (x86)\NSIS" 且不会生成
+# chocolatey\bin 下的 shim，因此不能假设 C:\ProgramData\chocolatey\bin\makensis.exe 存在。
+resolve_makensis() {
+  if [ -n "${NSIS:-}" ] && [ -f "$NSIS" ]; then echo "$NSIS"; return 0; fi
+  local found
+  found="$(command -v makensis 2>/dev/null || true)"
+  if [ -n "$found" ]; then echo "$found"; return 0; fi
+  for cand in \
+    "/c/ProgramData/chocolatey/bin/makensis.exe" \
+    "/c/Program Files (x86)/NSIS/makensis.exe" \
+    "/c/Program Files (x86)/NSIS/Bin/makensis.exe" \
+    "/c/Program Files/NSIS/makensis.exe" \
+    "/c/Program Files/NSIS/Bin/makensis.exe" ; do
+    if [ -f "$cand" ]; then echo "$cand"; return 0; fi
+  done
+  echo ""
+}
+NSIS="$(resolve_makensis)"
+if [ -z "$NSIS" ]; then
+  echo "!! 未找到 makensis.exe（NSIS）。请安装 NSIS，或用 NSIS 环境变量指向 makensis.exe"
+  exit 127
+fi
+echo "makensis => $NSIS"
 NSIF="$APP/build/windows/installer.nsi"
 bom3=$(head -c 3 "$NSIF" | od -An -tx1 | tr -d ' \n')
 if [ "$bom3" = "efbbbf" ] && [ "$(head -c 6 "$NSIF" | od -An -tx1 | tr -d ' \n')" = "efbbbfefbbbf" ]; then
