@@ -8,6 +8,7 @@
 package tray
 
 import (
+	"runtime"
 	"sync"
 
 	"alistwin/internal/trayicon"
@@ -48,7 +49,18 @@ var (
 func Start(c Controller) {
 	ctrl = c
 	startOnce.Do(func() {
-		go systray.Run(onReady, onExit)
+		go func() {
+			// 关键修复：Win32 的窗口消息按“线程”排队，消息循环 goroutine 必须绑定到
+			// 固定的 OS 线程。systray 只在包 init() 里对“主 goroutine”调用过
+			// LockOSThread，而此处 Run 跑在新建的 goroutine 上；若不显式锁定，
+			// Go 调度器可能把整个消息循环迁移到另一个 OS 线程（系统休眠唤醒后线程
+			// 被大规模重排时极易触发）。迁移之后 GetMessage 再也收不到托盘窗口的
+			// 消息 —— 表现为“托盘图标还在，但点击毫无反应”，而 alist 是独立子进程，
+			// 服务照常运行，与本现象完全吻合。
+			// 注意：这里不能 defer UnlockOSThread()，必须全程保持锁定。
+			runtime.LockOSThread()
+			systray.Run(onReady, onExit)
+		}()
 	})
 }
 
@@ -92,8 +104,13 @@ func onReady() {
 	systray.SetTooltip("AList 桌面版 — alist 本地服务管理")
 
 	// 左键：回到主界面（显示并聚焦窗口）
-	systray.SetOnClick(func(_ systray.IMenu) { ctrl.TrayShowWindow() })
-	// 右键：弹出菜单（energye fork 默认不展示菜单，必须显式调用 ShowMenu）
+	// 必须在独立 goroutine 中执行，原因有二：
+	//  1) 回调是同步在 WndProc（即消息循环线程）里调用的，任何阻塞都会让整个托盘卡死；
+	//  2) Wails 的 runtime.WindowShow 内部会 runtime.LockOSThread() +
+	//     defer runtime.UnlockOSThread()；若在托盘线程上执行，它 defer 的 Unlock
+	//     会解除本 goroutine 的线程绑定，重新引入“消息循环被迁走”的 Bug。
+	systray.SetOnClick(func(_ systray.IMenu) { go ctrl.TrayShowWindow() })
+	// 右键：弹出菜单。ShowMenu 是模态 Win32 操作且隶属于托盘窗口，须在托盘线程上执行。
 	systray.SetOnRClick(func(menu systray.IMenu) { _ = menu.ShowMenu() })
 
 	miStart = systray.AddMenuItem("启动", "启动 alist 服务")
@@ -114,23 +131,32 @@ func onReady() {
 	miURL.Disable()
 	miAccount.Disable()
 
-	// energye/systray 用 item.Click(fn) 注册菜单回调（v1.0.3 无 ClickedCh 通道）
-	miStart.Click(func() { ctrl.TrayStart() })
-	miStop.Click(func() { ctrl.TrayStop() })
-	miRestart.Click(func() { ctrl.TrayRestart() })
-	miOpen.Click(func() { ctrl.TrayOpenBrowser() })
-	miURL.Click(func() { ctrl.TrayOpenBrowser() })
-	miLogs.Click(func() { ctrl.TrayOpenLogsWindow() })
-	miData.Click(func() { ctrl.TrayOpenDataDir() })
+	// energye/systray 用 item.Click(fn) 注册菜单回调（v1.0.3 无 ClickedCh 通道）。
+	// 同样一律放到独立 goroutine 执行：菜单回调也是在 WndProc（消息循环线程）里同步
+	// 派发的（WM_COMMAND → systrayMenuItemSelected），而 TrayStart/TrayRestart 这类
+	// 操作可能耗时数十秒（健康检查最长 20s），直接执行会冻住整个托盘；同时也避免
+	// Wails runtime 的 UnlockOSThread 在托盘线程上解除线程绑定。
+	miStart.Click(func() { go ctrl.TrayStart() })
+	miStop.Click(func() { go ctrl.TrayStop() })
+	miRestart.Click(func() { go ctrl.TrayRestart() })
+	miOpen.Click(func() { go ctrl.TrayOpenBrowser() })
+	miURL.Click(func() { go ctrl.TrayOpenBrowser() })
+	miLogs.Click(func() { go ctrl.TrayOpenLogsWindow() })
+	miData.Click(func() { go ctrl.TrayOpenDataDir() })
 	miAuto.Click(func() {
-		ctrl.TrayToggleAutoStart()
-		SyncState()
+		go func() {
+			ctrl.TrayToggleAutoStart()
+			// 菜单状态更新由 systray 内部互斥锁（muMenus 等）保护，可跨 goroutine 调用
+			SyncState()
+		}()
 	})
 	miAbout.Click(func() {
-		ctrl.TrayShowWindow()
-		ctrl.TrayAbout()
+		go func() {
+			ctrl.TrayShowWindow()
+			ctrl.TrayAbout()
+		}()
 	})
-	miQuit.Click(func() { ctrl.TrayQuit() })
+	miQuit.Click(func() { go ctrl.TrayQuit() })
 
 	// 订阅后端状态推送，动态刷新托盘文案
 	// （EventsOn 在 trayicon 包不可用，这里由 App.SyncTray 主动调用 SyncState）
